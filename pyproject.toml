@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "structflow-jax"
+version = "0.1.0"
+description = "StructFlow: compile probabilistic graphical models into structured (block-triangular) continuous normalizing flows for causal and inference queries."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Alexander Telfar", email = "te1farac@gmail.com" }]
+keywords = ["normalizing flows", "flow matching", "probabilistic graphical models", "causal inference", "jax"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "sinterp-jax @ git+https://github.com/act65/sinterp@v0.2.0",
+    "flow-jax @ git+https://github.com/act65/flow@v0.2.0",
+    "numpy", "scipy", "jax", "equinox", "optax", "diffrax", "ott-jax==0.6.0",
+    "networkx", "distrax", "blackjax", "scikit-learn",
+    "ipython",  # blackjax -> fastprogress imports IPython without declaring it
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "parameterized", "matplotlib"]
+
+[project.urls]
+Homepage = "https://github.com/act65/structflow"
+
+[tool.setuptools.packages.find]
+include = ["structflow*"]
+
+[tool.setuptools.package-data]
+"structflow.conditional_flows.tests" = ["data/*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "expensive: marks tests as expensive (run with '--run-expensive')",
+]
