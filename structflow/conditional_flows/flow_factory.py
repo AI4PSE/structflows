@@ -29,15 +29,24 @@ from sinterp.stochasticfield import OneSidedField_eta1
 from sinterp.couplings import SinkhornCoupling, C2OTCoupling
 
 
+# Adaptive-weight target for use_coupling='c2ot' (the value used in the paper's experiments;
+# sinterp's own C2OTCoupling default, 0.01, is the C2OT paper's).
+C2OT_TARGET_RATIO = 0.05
+
 COUPLING_DOC = """use_coupling: How noise is paired with data in each training batch.
             False: independent. True / 'joint': Sinkhorn OT over the joint vector with a
-            barycentric projection (legacy default; the paired noise is an average of noise
+            barycentric projection (legacy; the paired noise is an average of noise
             rows, so its variance shrinks, and for conditional models it depends on the
             condition). 'hungarian': exact OT permutation over the joint vector (the noise
             stays exactly N(0, I)). 'c2ot': one permutation per block, matching the block's
             values with its parents as the C2OT condition; with a fixed block order this is a
-            minibatch Knothe-Rosenblatt coupling. Pass a C2OTCoupling instance to set its
-            options."""
+            minibatch Knothe-Rosenblatt coupling (target ratio C2OT_TARGET_RATIO). Pass a
+            C2OTCoupling instance to set its options.
+            Defaults, one per mode, are the couplings that keep each mode consistent: static
+            False (each block's network sees its conditions as clean inputs, so independent
+            pairing is exact), dynamic 'c2ot' (independent or joint pairing biases the
+            block-triangular optimum), guided 'hungarian' (models the joint, which exact OT
+            preserves)."""
 
 
 def _resolve_coupling(use_coupling):
@@ -51,7 +60,7 @@ def _resolve_coupling(use_coupling):
     if use_coupling == 'hungarian':
         return 'hungarian', C2OTCoupling(w=0.0)
     if use_coupling == 'c2ot':
-        return 'c2ot', C2OTCoupling()
+        return 'c2ot', C2OTCoupling(target_ratio=C2OT_TARGET_RATIO)
     raise ValueError(f"use_coupling must be True, False, 'joint', 'hungarian', 'c2ot' "
                      f"or a C2OTCoupling, got {use_coupling!r}")
 
@@ -72,7 +81,7 @@ def create_joint_flow(
     width: int,
     model_key: Any,
     optimizer: Any,
-    use_coupling: Union[bool, str],
+    use_coupling: Union[bool, str] = 'hungarian',
     normaliser: Optional[Any] = None,
 ) -> Tuple[Any, Callable]:
     """Create a joint (flat) flow model.
@@ -150,7 +159,7 @@ def create_static_flow(
     width: int,
     model_key: Any,
     optimizer: Any,
-    use_coupling: Union[bool, str],
+    use_coupling: Union[bool, str] = False,
     normaliser: Optional[Any] = None,
     block_shapes: Optional[Dict[str, Any]] = None,
     conv_channels: int = 64,
@@ -269,7 +278,7 @@ def create_dynamic_flow(
     width: int,
     model_key: Any,
     optimizer: Any,
-    use_coupling: Union[bool, str],
+    use_coupling: Union[bool, str] = 'c2ot',
     use_sparse: bool = False,
     normaliser: Optional[Any] = None,
 ) -> Tuple[Any, Callable]:

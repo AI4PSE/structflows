@@ -28,10 +28,9 @@ The experiments, evaluation and LaTeX source of the paper live in
 | [`structflow.conditional_flows`](structflow/conditional_flows/README.md) | conditional flows `p(targets \| conditions)`: `static`, `dynamic` (parallel), `guided` (reconstruction guidance), and the CAREFL / DCM baselines; factories `create_*_flow`, `create_distribution` |
 | [`structflow.bayes`](structflow/bayes/README.md) | distribution objects, NUTS reference posteriors, metrics (SWD, Sinkhorn, KL) |
 
-Dependencies maintained separately:
-[`sinterp`](https://github.com/act65/sinterp) (interpolants and couplings,
-including the C²OT / per-block coupling) and
-[`flow`](https://github.com/act65/flow) (ODE/SDE integration).
+Dependency maintained separately: [`sinterp-jax`](https://github.com/act65/sinterp),
+which provides two packages, `sinterp` (interpolants and couplings, including the
+C²OT / per-block coupling) and `flow` (ODE/SDE integration).
 
 ## Install
 
@@ -42,7 +41,7 @@ Install JAX for your hardware first (`pip install "jax[cpu]"` or
 pip install "structflow-jax @ git+https://github.com/act65/structflow@v0.1.0"   # import structflow
 ```
 
-This pulls `sinterp-jax` and `flow-jax` from their GitHub tags. From a clone:
+This pulls `sinterp-jax` from its GitHub tag. From a clone:
 `pip install -e ".[dev]"`.
 
 ## Quickstart

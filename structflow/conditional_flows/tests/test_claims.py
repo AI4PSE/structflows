@@ -450,3 +450,19 @@ def test_every_factory_accepts_every_coupling(factory, use_coupling):
     with pytest.raises(ValueError):
         make(structure=STRUCT, depth=2, width=16, model_key=random.PRNGKey(0), optimizer=opt,
              use_coupling="sinkhorn-typo")
+
+
+def test_default_couplings_keep_each_mode_consistent():
+    """The factories default to the coupling under which each mode is consistent: static
+    independent, dynamic per-block C2OT (target ratio 0.05, as in the paper), guided exact OT.
+    Catches: a default reverting to the joint Sinkhorn coupling, which biases conditionals."""
+    import inspect
+    from structflow.conditional_flows.flow_factory import (create_dynamic_flow, create_joint_flow,
+                                                create_static_flow, C2OT_TARGET_RATIO,
+                                                _resolve_coupling)
+    default = lambda f: inspect.signature(f).parameters["use_coupling"].default
+    assert default(create_static_flow) is False
+    assert default(create_dynamic_flow) == "c2ot"
+    assert default(create_joint_flow) == "hungarian"
+    kind, coupling = _resolve_coupling("c2ot")
+    assert kind == "c2ot" and coupling.target_ratio == C2OT_TARGET_RATIO == 0.05
