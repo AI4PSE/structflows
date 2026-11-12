@@ -7,7 +7,7 @@ This is the library behind the paper
 **"Structured Flows for Causal Modelling and Statistical Inference"**
 (Telfar & Sandfeld, TMLR 2026, [OpenReview](https://openreview.net/forum?id=5cFwygAUFt)).
 The experiments, evaluation and LaTeX source of the paper live in
-[structflow-tmlr](https://github.com/act65/structflow-tmlr).
+[structflows-tmlr](https://github.com/AI4PSE/structflows-tmlr).
 
 - **Causal alignment** keeps the DAG factorization: the trained flow is a
   structural causal model, so it answers interventional and counterfactual
@@ -38,7 +38,7 @@ Install JAX for your hardware first (`pip install "jax[cpu]"` or
 `"jax[cuda12]"`), then
 
 ```bash
-pip install "structflow-jax @ git+https://github.com/act65/structflow@v0.1.0"   # import structflow
+pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.0"   # import structflow
 ```
 
 This pulls `sinterp-jax` from its GitHub tag. From a clone:

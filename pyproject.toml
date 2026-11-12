@@ -28,7 +28,7 @@ dependencies = [
 dev = ["pytest", "parameterized", "matplotlib"]
 
 [project.urls]
-Homepage = "https://github.com/act65/structflow"
+Homepage = "https://github.com/AI4PSE/structflows"
 
 [tool.setuptools.packages.find]
 include = ["structflow*"]
