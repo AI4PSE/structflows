@@ -82,59 +82,77 @@ class DynamicFlow(ConditionalFlow):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def _single_block_trajectory(self, block, boundary, known_trajs, direction):
+        """Integrate one block with the given blocks clamped to their (forward-ordered)
+        trajectories; returns the block's trajectory in forward order (t = 0 -> 1)."""
+        struct = self.velocity_fn.structure
+        names = [b for b in struct.block_order if b in known_trajs]
+        vfn = ClampedFullVelocityFn(
+            velocity_fn=self.velocity_fn,
+            condition_trajs={b: known_trajs[b] for b in names},
+            traj_ts=jnp.linspace(0, 1, self.n_steps + 1),
+            cond_block_names=names,
+            active_block_names=[block],
+        )
+        flow = Flow(vfn, self.n_steps, self.integrator_name)
+        if direction == "forward":
+            return flow.forward_trajectory(boundary)
+        return jnp.flip(flow.backward_trajectory(boundary), axis=0)
+
     def _get_condition_trajectories(
-        self, conditions: Dict[str, jnp.ndarray]
+        self,
+        conditions: Dict[str, jnp.ndarray],
+        noise: Optional[Dict[str, jnp.ndarray]] = None,
     ) -> Dict[str, jnp.ndarray]:
         """
-        Backward-integrate conditions to get their full *forward* trajectories
-        (t=0 → t=1).
+        Forward-ordered trajectories (t = 0 -> 1) of the condition blocks and of all their
+        ancestors.
 
-        Delegates to :meth:`trajectory_backward` with ``conditions=None``
-        (which takes the unconditional parallel-flow path), then reverses the
-        result.
+        A condition block's trajectory depends on its ancestors' trajectories (each block's
+        velocity reads its ancestors' current states). Two cases:
+
+        * The conditions contain all their ancestors (e.g. a prefix of the ordering): the
+          condition blocks are integrated backward jointly from their values.
+        * Some ancestor is not a condition: blocks are processed in topological order. An
+          ancestor is integrated forward from its base noise ``noise[b]`` (sampled noise when
+          sampling, abducted noise in a counterfactual), a condition block backward from its
+          value, each with its already-processed ancestors clamped. An ancestor without
+          supplied noise cannot influence the queried targets (it is not their ancestor), and
+          is given the trajectory ending at zero.
 
         Args:
-            conditions: Dictionary of condition values at t=1.
+            conditions: Condition (or intervention) values at t = 1.
+            noise: Base noise at t = 0 for non-condition ancestors, if available.
 
         Returns:
-            Dictionary mapping condition block names to forward trajectories,
-            each of shape ``(n_steps+1, dim)``.
+            Dict mapping each block in the ancestral closure of the conditions to its forward
+            trajectory of shape ``(n_steps + 1, dim)``.
         """
         structure = self.velocity_fn.structure
-        cond_block_names = list(conditions.keys())
-
-        # Blocks needed: conditions + ALL their ancestors (transitive closure).
-        # Using only direct deps was a bug: for a chain x0->x1->x2 with
-        # conditions={'x2'}, x1 was omitted from keep_set, causing clip_tail
-        # to raise "Cannot remove block 'x1': it is a parent of kept block
-        # 'x2'" later in _conditional_trajectory.
-        keep_set = structure.get_ancestral_closure(set(cond_block_names))
+        keep_set = structure.get_ancestral_closure(set(conditions.keys()))
         keep_blocks = [b for b in structure.block_order if b in keep_set]
 
-        # Build x1 with conditions and zeros for dependency-only blocks
-        x1_full: Dict[str, jnp.ndarray] = {}
-        for block in keep_blocks:
-            if block in conditions:
-                x1_full[block] = conditions[block]
+        if keep_set <= set(conditions.keys()):
+            # Conditions are ancestrally closed: integrate them backward jointly
+            # (conditions=None takes the parallel-flow path, no recursion).
+            traj_bwd = self.trajectory_backward(
+                {b: conditions[b] for b in keep_blocks},
+                active_blocks=keep_blocks, conditions=None,
+            )
+            return {b: jnp.flip(traj_bwd[b], axis=0) for b in keep_blocks}
+
+        noise = noise or {}
+        trajs: Dict[str, jnp.ndarray] = {}
+        for b in keep_blocks:
+            known = {a: trajs[a] for a in structure.get_ancestral_closure({b}) - {b}}
+            if b in conditions:
+                trajs[b] = self._single_block_trajectory(b, conditions[b], known, "backward")
+            elif b in noise:
+                trajs[b] = self._single_block_trajectory(b, noise[b], known, "forward")
             else:
-                x1_full[block] = jnp.zeros((structure.dims[block],))
-
-        # Backward integrate unconditionally (conditions=None takes the
-        # parallel_flow path — no recursion)
-        traj_bwd = self.trajectory_backward(
-            x1_full, active_blocks=keep_blocks, conditions=None
-        )
-
-        # Reverse to forward order; return trajectories for ALL integrated
-        # blocks (including intermediate ancestors such as x1 in
-        # x0->x1->x2 when conditions={'x2'}).  _conditional_trajectory
-        # then includes these ancestor blocks in cond_block_names /
-        # keep_blocks, satisfying clip_tail's requirement that every parent
-        # of a kept block is itself kept.
-        return {
-            block: jnp.flip(traj_bwd[block], axis=0)
-            for block in keep_set
-        }
+                trajs[b] = self._single_block_trajectory(
+                    b, jnp.zeros((structure.dims[b],)), known, "backward")
+        return trajs
 
     # ------------------------------------------------------------------
     # Shared conditional integration logic
@@ -164,9 +182,18 @@ class DynamicFlow(ConditionalFlow):
         """
         structure = self.velocity_fn.structure
 
-        # 1. Get forward condition trajectories (skip when no conditions)
+        # 1. Get forward condition trajectories (skip when no conditions). Going forward,
+        # the active blocks' boundary values are their base noise, so ancestors of the
+        # conditions that are active get their actual trajectories (computed together with
+        # the conditions' trajectories, and reused below rather than integrated again).
+        pre_trajs: Dict[str, jnp.ndarray] = {}
         if conditions:
-            condition_trajs = self._get_condition_trajectories(conditions)
+            noise = x_boundary if direction == "forward" else None
+            condition_trajs = self._get_condition_trajectories(conditions, noise=noise)
+            if direction == "forward":
+                pre_trajs = {b: condition_trajs[b] for b in active_blocks
+                             if b in condition_trajs and b not in conditions}
+            active_blocks = [b for b in active_blocks if b not in pre_trajs]
             # Exclude any blocks that are also being actively integrated —
             # they must not be double-counted as both condition and active.
             active_set = set(active_blocks)
@@ -177,6 +204,8 @@ class DynamicFlow(ConditionalFlow):
         else:
             condition_trajs = {}
             cond_block_names = []
+        if not active_blocks:
+            return pre_trajs
 
         # 2.-4. Build the clamped full-network velocity (correctness fix: the
         # former Mode-A clip_tail + SubsetVelocityFn path severed cross-block
@@ -199,7 +228,7 @@ class DynamicFlow(ConditionalFlow):
             traj_flat = flow.backward_trajectory(x_flat)
 
         # 6. Unflatten trajectories
-        result: Dict[str, jnp.ndarray] = {}
+        result: Dict[str, jnp.ndarray] = dict(pre_trajs)
         start = 0
         for block in active_blocks:
             dim = structure.dims[block]

@@ -23,7 +23,7 @@ _spec.loader.exec_module(quickstart)
 
 
 def test_quickstart_runs_and_moralizes():
-    result = quickstart.run(n_train=64, train_steps=20, width=16, depth=2, n_eval=64,
+    result = quickstart.run(n_train=64, train_steps=20, width=16, depth=2, n_eval=64, n_cf=8,
                             seed=0, verbose=False)
 
     # Training produced finite losses.
@@ -43,4 +43,4 @@ def test_quickstart_runs_and_moralizes():
     # Every query returns finite values (the counterfactual of x0 needs the unchanged
     # parent x2 as context).
     assert np.all(np.isfinite(result["flow_mean"]))
-    assert np.isfinite(result["x0_do"]) and all(np.isfinite(v) for v in result["x0_cf"])
+    assert np.isfinite(result["x0_do"]) and np.isfinite(result["x0_cf_err"])

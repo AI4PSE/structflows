@@ -50,7 +50,7 @@ Install JAX for your hardware first (`pip install "jax[cpu]"` or
 `"jax[cuda12]"`), then
 
 ```bash
-pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.2"   # import structflow
+pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.3"   # import structflow
 ```
 
 This pulls `sinterp-jax` from its GitHub tag. From a clone:
@@ -142,11 +142,14 @@ x0_do = jax.vmap(lambda k: causal_flow.sample(k, targets={"x2", "x0"}, intervent
     random.split(random.PRNGKey(4), 2000))
 print("E[x0 | do(x1=2)]:", x0_do.mean(), "exact 2.0")
 
-# Counterfactual: for one observed individual, what would x0 have been had x1 been 2?
-# Abduction recovers this individual's noise, which is then pushed through the modified model.
-factual = {name: values[0] for name, values in data.items()}
-cf, _ = causal_flow.counterfactual(factual, interventions=do_x1, targets={"x0"})
-print("counterfactual x0:", cf["x0"], "exact", factual["x0"] + 2.0 - factual["x1"])
+# Counterfactual: for each observed individual, what would x0 have been had x1 been 2?
+# Abduction recovers the individual's noise, which is then pushed through the modified model.
+# Exact answer: x0 + (2 - x1). Compared over 100 individuals (noise s.d. on x0 is 0.5).
+factuals = {name: values[:100] for name, values in data.items()}
+cf = jax.vmap(lambda d: causal_flow.counterfactual(
+    d, interventions=do_x1, targets={"x0"}, compute_log_prob=False)[0]["x0"])(factuals)
+exact = factuals["x0"] + 2.0 - factuals["x1"]
+print("mean |counterfactual error|:", jnp.mean(jnp.abs(cf - exact)))
 ```
 
 [`examples/structflow_quickstart.py`](examples/structflow_quickstart.py) runs the same
@@ -159,8 +162,9 @@ steps as a script (about a minute on a laptop CPU):
 
 2. E[x0 | do(x1 = 2)]: flow 2.18, exact 2.00
 
-3. observed x1 = -1.46, x2 = -1.39, x0 = -3.48
-   had x1 been 2, x0 would have been: flow -0.12, exact -0.01
+3. counterfactual x0 had x1 been 2, for 100 observed individuals
+   first: observed x1 = -1.46, x0 = -3.48; flow -0.12, exact -0.01
+   mean |flow - exact| = 0.16   (noise s.d. on x0: 0.5)
 ```
 
 The ground-truth PGM answers the same queries where they are tractable:

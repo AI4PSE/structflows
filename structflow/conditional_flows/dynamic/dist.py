@@ -229,25 +229,11 @@ class DynamicDistribution(ConditionalDistribution, eqx.Module):
         
         # 1. Abduction: Map observed data to noise
         z_dict = self.transform_to_noise(data)
-        
-        # 2. Action: Get noise for intervened variables
-        if intervened_keys:
-            x1_interv_dict = {b: interventions[b] for b in intervened_keys}
-            for b in structure.block_order:
-                if b not in x1_interv_dict:
-                    x1_interv_dict[b] = jnp.zeros((structure.dims[b],))
-            
-            z_interv_dict = self.flow.backward(x1_interv_dict)
-            
-            for b in intervened_keys:
-                z_dict[b] = z_interv_dict[b]
-        
-        # 3. Prediction: Forward integrate from modified noise
-        z_dict_full = dict(z_dict)
-        for b in structure.block_order:
-            if b not in z_dict_full:
-                z_dict_full[b] = self.base_distributions[b].sample(jax.random.PRNGKey(0))
-        
+
+        # 2.-3. Action and prediction: integrate the non-intervened targets and their
+        # non-intervened ancestors forward from the abducted noise. The intervened blocks'
+        # trajectories are built from their values and their ancestors' counterfactual
+        # trajectories (DynamicFlow._get_condition_trajectories with the abducted noise).
         # Prepare conditions with interventions
         cond_dict = dict(interventions)
 
@@ -303,7 +289,7 @@ class DynamicDistribution(ConditionalDistribution, eqx.Module):
 
         # Trajectories for explicit intervention blocks
         condition_trajs = (
-            self.flow._get_condition_trajectories(interventions)
+            self.flow._get_condition_trajectories(interventions, noise=x0_sim)
             if interv_block_names else {}
         )
         # Trajectories for implicit ancestor blocks (simulated above)

@@ -6,7 +6,7 @@ The numerical test suite (`test_numerical.py`) verifies that conditional distrib
 
 ### Core Strategy
 
-1. Use [`exact_si_gaussian.py`](../sinterp/exact_si_gaussian.py) to construct **oracle velocity functions** that exactly transform:
+1. Use [`sinterp/exact_si_gaussian.py`](https://github.com/act65/sinterp/blob/main/sinterp/exact_si_gaussian.py) to construct **oracle velocity functions** that exactly transform:
    - Base distribution: **N(0, I)** at t=0
    - Target distribution: **N(m₂, C₂)** at t=1
 
@@ -90,7 +90,7 @@ class ExactGaussianStaticVelocity(eqx.Module):
 
 **Limitations:**
 - ✅ Supports independent variables (no parent dependencies)
-- ⚠️ Parent dependencies would require proper context passing (TODO)
+- ⚠️ Parent dependencies are not supported (no parent context is passed)
 
 ### 2. Dynamic/Parallel Mode: `ExactGaussianParallelVelocity`
 
@@ -164,7 +164,7 @@ class ExactGaussianGuidedVelocity(eqx.Module):
             return {name: self.v_fns[name](x[name], t) 
                     for name in self.key_order if name in x}
         else:
-            # Flat vector input (TODO): requires flattening logic
+            # Flat vector input is not supported
             raise NotImplementedError(
                 "Guided velocity adapter currently expects dict input"
             )
@@ -377,10 +377,10 @@ test_chain_structure()
 
 ## References
 
-- **Exact SI Gaussian**: [`sinterp/exact_si_gaussian.py`](../sinterp/exact_si_gaussian.py)
-- **Interpolants**: [`sinterp/interpolants.py`](../sinterp/interpolants.py)
+- **Exact SI Gaussian**: [`sinterp/exact_si_gaussian.py`](https://github.com/act65/sinterp/blob/main/sinterp/exact_si_gaussian.py)
+- **Interpolants**: [`sinterp/interpolants.py`](https://github.com/act65/sinterp/blob/main/sinterp/interpolants.py)
 - **Distribution implementations**: 
   - [`conditional_flows/static/dist.py`](../static/dist.py)
-  - [`conditional_flows/dynamic/distv2.py`](../parallel/distv2.py)
+  - [`conditional_flows/dynamic/dist.py`](../dynamic/dist.py) and [`parallel_dist.py`](../dynamic/parallel_dist.py)
   - [`conditional_flows/guidance/dist.py`](../guidance/dist.py)
 - **Test utilities**: [`tests/numerical_utils.py`](./numerical_utils.py)

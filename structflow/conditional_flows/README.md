@@ -16,6 +16,7 @@ with batched versions `b_sample`, `b_log_prob`, `b_counterfactual`.
 | `guidance/` | `guided` | `GuidanceBasedDistribution` | one unstructured joint flow; arbitrary queries by reconstruction guidance |
 | `carefl/` | `carefl` | `CAREFLDistribution` | affine autoregressive flow (CAREFL baseline) |
 | `dcm/` | `dcm` | `DCMDistribution` | per-node denoising diffusion with DDIM (DCM baseline) |
+| (`flow_factory.py`) | `universal` | the model itself (a `StructuredPGMDistribution`) | structured spline flow over the same compiled structure: one rational-quadratic spline per block, conditioned on the block's parents, trained by maximum likelihood |
 
 Build a trainable model with the factories in `flow_factory.py` (`create_static_flow`,
 `create_dynamic_flow`, `create_joint_flow`, `create_carefl_flow`, `create_dcm_flow`,

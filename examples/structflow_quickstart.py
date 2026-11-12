@@ -19,7 +19,7 @@ form (the model is linear-Gaussian):
 1. posterior given x0:  E[x1 | x0] = E[x2 | x0] = x0 / 2.25,  corr(x1, x2 | x0) = -0.8,
    although x1 and x2 are independent a priori;
 2. intervention:       E[x0 | do(x1 = 2)] = 2;
-3. counterfactual:     had x1 been 2, this individual's x0 would have been x0 + (2 - x1).
+3. counterfactual:     had x1 been 2, each observed individual's x0 would have been x0 + (2 - x1).
 
 Run:  python examples/structflow_quickstart.py     (about a minute on a laptop CPU)
 """
@@ -74,8 +74,8 @@ def corr(a, b):
     return float(np.corrcoef(np.ravel(a), np.ravel(b))[0, 1])
 
 
-def run(n_train=4096, train_steps=2000, width=64, depth=3, lr=3e-3, n_eval=2000, seed=0,
-        verbose=True):
+def run(n_train=4096, train_steps=2000, width=64, depth=3, lr=3e-3, n_eval=2000, n_cf=100,
+        seed=0, verbose=True):
     say = print if verbose else (lambda *a, **k: None)
     k_data, k_causal, k_inf, k_post, k_do = random.split(random.PRNGKey(seed), 5)
 
@@ -112,19 +112,23 @@ def run(n_train=4096, train_steps=2000, width=64, depth=3, lr=3e-3, n_eval=2000,
         random.split(k_do, n_eval))
     say(f"\n2. E[x0 | do(x1 = 2)]: flow {float(x0_do.mean()):.2f}, exact 2.00")
 
-    # -- 3. counterfactual for one observed individual -----------------------------------
-    factual = {b: v[0] for b, v in data.items()}
-    cf, _ = causal_flow.counterfactual(factual, interventions={"x1": x1_do}, targets={"x0"})
-    cf_exact = float(factual["x0"][0] + 2.0 - factual["x1"][0])
-    say(f"\n3. observed x1 = {float(factual['x1'][0]):.2f}, x2 = {float(factual['x2'][0]):.2f}, "
-        f"x0 = {float(factual['x0'][0]):.2f}")
-    say(f"   had x1 been 2, x0 would have been: flow {float(cf['x0'][0]):.2f}, exact {cf_exact:.2f}")
+    # -- 3. counterfactuals for observed individuals ------------------------------------
+    # For each individual: had x1 been 2, what would x0 have been? Exact: x0 + (2 - x1).
+    factuals = {b: v[:n_cf] for b, v in data.items()}
+    cf = jax.vmap(lambda d: causal_flow.counterfactual(
+        d, interventions={"x1": x1_do}, targets={"x0"}, compute_log_prob=False)[0]["x0"])(factuals)
+    cf_exact = factuals["x0"] + 2.0 - factuals["x1"]
+    cf_err = float(jnp.mean(jnp.abs(cf - cf_exact)))
+    say(f"\n3. counterfactual x0 had x1 been 2, for {n_cf} observed individuals")
+    say(f"   first: observed x1 = {float(factuals['x1'][0, 0]):.2f}, x0 = {float(factuals['x0'][0, 0]):.2f}; "
+        f"flow {float(cf[0, 0]):.2f}, exact {float(cf_exact[0, 0]):.2f}")
+    say(f"   mean |flow - exact| = {cf_err:.2f}   (noise s.d. on x0: {NOISE})")
 
     return dict(causal_structure=(causal.block_order, dict(causal.dependencies)),
                 inference_structure=(inference.block_order, dict(inference.dependencies)),
                 losses=(causal_loss, inf_loss), flow_corr=flow_corr, exact_corr=exact_corr,
                 flow_mean=flow_mean, exact_mean=exact_mean, x0_do=float(x0_do.mean()),
-                x0_cf=(float(cf["x0"][0]), cf_exact))
+                x0_cf_err=cf_err)
 
 
 if __name__ == "__main__":

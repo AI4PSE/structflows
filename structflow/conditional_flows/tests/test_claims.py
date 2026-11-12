@@ -1,11 +1,11 @@
 """
-Claim-driven regression tests (see ~/.claude/skills/claim-driven-tests).
+Claim-driven regression tests.
 
 The rest of the suite checks the samplers on an *independent* two-block Gaussian, with oracle
-velocities and with OT coupling switched off. Four real problems were invisible there:
-dynamic conditioning is inconsistent for correlated blocks, the triangular masks were trainable,
-joint OT coupling biases static conditionals, and the guidance weight is too small by a factor
-of t. Every test here sits on a fixture where a wrong implementation gives a different number:
+velocities and with OT coupling switched off. Four failure modes are invisible there: dynamic
+conditioning that is inconsistent for correlated blocks, triangular masks that train, a joint OT
+coupling that biases static conditionals, and a guidance weight too small by a factor of t.
+Every test here sits on a fixture where a wrong implementation gives a different number:
 
     y ~ N(0, 1),  theta = rho * y + sqrt(1 - rho^2) * eps,  rho = 0.9,  condition y = C
 
