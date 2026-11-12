@@ -9,7 +9,7 @@ description = "StructFlow: compile probabilistic graphical models into structure
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-authors = [{ name = "Alexander Telfar", email = "te1farac@gmail.com" }]
+authors = [{ name = "Alexander Telfar" }]
 keywords = ["normalizing flows", "flow matching", "probabilistic graphical models", "causal inference", "jax"]
 classifiers = [
     "Programming Language :: Python :: 3",
