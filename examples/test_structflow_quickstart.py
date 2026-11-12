@@ -36,11 +36,11 @@ def test_quickstart_runs_and_moralizes():
     # ... while the inference compilation adds the moralization edge between the
     # two causes (explaining away): one cause now conditions on the other.
     inf_order, inf_deps = result["inference_structure"]
-    assert inf_order[0] == "y", "observation must precede targets in inference order"
+    assert inf_order[0] == "x0", "observation must precede targets in inference order"
     moral_edge = ("x2" in inf_deps.get("x1", [])) or ("x1" in inf_deps.get("x2", []))
     assert moral_edge, f"expected a moralization edge between x1 and x2, got {inf_deps}"
 
-    # Every query returns finite values (the counterfactual of y needs the unchanged
+    # Every query returns finite values (the counterfactual of x0 needs the unchanged
     # parent x2 as context).
     assert np.all(np.isfinite(result["flow_mean"]))
-    assert np.isfinite(result["y_do"]) and all(np.isfinite(v) for v in result["y_cf"])
+    assert np.isfinite(result["x0_do"]) and all(np.isfinite(v) for v in result["x0_cf"])

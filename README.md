@@ -58,11 +58,11 @@ This pulls `sinterp-jax` from its GitHub tag. From a clone:
 
 ## Quickstart: a collider, end to end
 
-The example below uses the same graph shape with explicit equations, so every answer has a
+The example below is the collider of Figure 1 with explicit equations, so every answer has a
 closed form to check against:
 
 ```math
-x_1,\ x_2 \sim \mathcal{N}(0, 1), \qquad y = x_1 + x_2 + 0.5\,\varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, 1).
+x_1,\ x_2 \sim \mathcal{N}(0, 1), \qquad x_0 = x_1 + x_2 + 0.5\,\varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, 1).
 ```
 
 It trains two flows on the same data, one per compiled structure, and asks three kinds of
@@ -80,32 +80,32 @@ from structflow.pgms.mechanisms import LinearMechanism
 from structflow.conditional_flows import create_static_flow, create_distribution
 
 structure = BlockTriangularStructure(
-    block_order=["x1", "x2", "y"],
-    dependencies={"x1": [], "x2": [], "y": ["x1", "x2"]},   # node -> its parents
-    dims={"x1": 1, "x2": 1, "y": 1},
+    block_order=["x1", "x2", "x0"],
+    dependencies={"x1": [], "x2": [], "x0": ["x1", "x2"]},   # node -> its parents
+    dims={"x1": 1, "x2": 1, "x0": 1},
 )
 cause = lambda: LinearMechanism(parent_names=[], input_dim=0, output_dim=1,      # x = noise
                                 A=jnp.zeros((1, 0)), B=jnp.eye(1), bias=jnp.zeros(1))
-effect = LinearMechanism(parent_names=["x1", "x2"], input_dim=2, output_dim=1,   # y = x1 + x2 + 0.5 noise
+effect = LinearMechanism(parent_names=["x1", "x2"], input_dim=2, output_dim=1,   # x0 = x1 + x2 + 0.5 noise
                          A=jnp.ones((1, 2)), B=0.5 * jnp.eye(1), bias=jnp.zeros(1))
-pgm = StructuralPGM(structure, {"x1": cause(), "x2": cause(), "y": effect})
+pgm = StructuralPGM(structure, {"x1": cause(), "x2": cause(), "x0": effect})
 
 data = pgm.b_sample(random.PRNGKey(0), 4096)      # dict of arrays: {'x1': (4096, 1), ...}
 ```
 
 **2. Compile the graph for each kind of query.** The causal structure keeps the DAG, so
-its flow is a structural causal model. The inference structure for `p(x1, x2 | y)` puts `y`
+its flow is a structural causal model. The inference structure for `p(x1, x2 | x0)` puts `x0`
 first and adds the moral edge `x2 -> x1`.
 
 ```python
 compiler = PGMCompiler(structure.dependencies, structure.dims)
 causal = compiler.compile_causal()
-inference = compiler.compile_inference(targets={"x1", "x2"}, conditions={"y"})
+inference = compiler.compile_inference(targets={"x1", "x2"}, conditions={"x0"})
 
 print(causal.block_order, causal.dependencies)
-# ['x1', 'x2', 'y'] {'x1': [], 'x2': [], 'y': ['x1', 'x2']}
+# ['x1', 'x2', 'x0'] {'x1': [], 'x2': [], 'x0': ['x1', 'x2']}
 print(inference.block_order, inference.dependencies)
-# ['y', 'x2', 'x1'] {'y': [], 'x2': ['y'], 'x1': ['y', 'x2']}
+# ['x0', 'x2', 'x1'] {'x0': [], 'x2': ['x0'], 'x1': ['x0', 'x2']}
 ```
 
 **3. Train one structured flow per compiled structure.** `create_static_flow` builds a
@@ -125,42 +125,42 @@ def train(compiled, key, steps=2000):
         "dims": compiled.dims})
 
 causal_flow = train(causal, random.PRNGKey(1))         # answers do() and counterfactuals
-inference_flow = train(inference, random.PRNGKey(2))   # answers p(x1, x2 | y)
+inference_flow = train(inference, random.PRNGKey(2))   # answers p(x1, x2 | x0)
 ```
 
 **4. Ask questions.** Each answer is printed next to its closed form.
 
 ```python
-# Posterior: observing a large y makes the independent causes negatively correlated
+# Posterior: observing a large x0 makes the independent causes negatively correlated
 # ("explaining away"). Sampled directly from the inference flow; no MCMC.
-post = inference_flow.b_sample(random.PRNGKey(3), 2000, conditions={"y": jnp.array([2.0])})
-print("corr(x1, x2 | y=2):", jnp.corrcoef(post["x1"][:, 0], post["x2"][:, 0])[0, 1], "exact -0.8")
+post = inference_flow.b_sample(random.PRNGKey(3), 2000, conditions={"x0": jnp.array([2.0])})
+print("corr(x1, x2 | x0=2):", jnp.corrcoef(post["x1"][:, 0], post["x2"][:, 0])[0, 1], "exact -0.8")
 
-# Intervention: set x1 = 2 by surgery on the causal flow and sample y.
+# Intervention: set x1 = 2 by surgery on the causal flow and sample x0.
 do_x1 = {"x1": jnp.array([2.0])}
-y_do = jax.vmap(lambda k: causal_flow.sample(k, targets={"x2", "y"}, interventions=do_x1)["y"])(
+x0_do = jax.vmap(lambda k: causal_flow.sample(k, targets={"x2", "x0"}, interventions=do_x1)["x0"])(
     random.split(random.PRNGKey(4), 2000))
-print("E[y | do(x1=2)]:", y_do.mean(), "exact 2.0")
+print("E[x0 | do(x1=2)]:", x0_do.mean(), "exact 2.0")
 
-# Counterfactual: for one observed individual, what would y have been had x1 been 2?
+# Counterfactual: for one observed individual, what would x0 have been had x1 been 2?
 # Abduction recovers this individual's noise, which is then pushed through the modified model.
 factual = {name: values[0] for name, values in data.items()}
-cf, _ = causal_flow.counterfactual(factual, interventions=do_x1, targets={"y"})
-print("counterfactual y:", cf["y"], "exact", factual["y"] + 2.0 - factual["x1"])
+cf, _ = causal_flow.counterfactual(factual, interventions=do_x1, targets={"x0"})
+print("counterfactual x0:", cf["x0"], "exact", factual["x0"] + 2.0 - factual["x1"])
 ```
 
 [`examples/structflow_quickstart.py`](examples/structflow_quickstart.py) runs the same
 steps as a script (about a minute on a laptop CPU):
 
 ```text
-1. posterior given y = 2.0
-   corr(x1, x2): a priori +0.03; given y: flow -0.85, exact -0.80
-   E[x1 | y], E[x2 | y]: flow 0.91, 0.79; exact 0.89
+1. posterior given x0 = 2.0
+   corr(x1, x2): a priori +0.03; given x0: flow -0.85, exact -0.80
+   E[x1 | x0], E[x2 | x0]: flow 0.91, 0.79; exact 0.89
 
-2. E[y | do(x1 = 2)]: flow 2.18, exact 2.00
+2. E[x0 | do(x1 = 2)]: flow 2.18, exact 2.00
 
-3. observed x1 = -1.46, x2 = -1.39, y = -3.48
-   had x1 been 2, y would have been: flow -0.12, exact -0.01
+3. observed x1 = -1.46, x2 = -1.39, x0 = -3.48
+   had x1 been 2, x0 would have been: flow -0.12, exact -0.01
 ```
 
 The ground-truth PGM answers the same queries where they are tractable:
