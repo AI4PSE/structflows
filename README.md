@@ -20,6 +20,18 @@ The experiments, evaluation and LaTeX source of the paper live in
   (Knothe–Rosenblatt) noise–data coupling, `use_coupling='c2ot'`; see the
   paper's appendix.
 
+## How it works
+
+![StructFlow pipeline](docs/structflow-pipeline.png)
+
+*Figure 1 of the paper.* A collider PGM (`x1 -> x0 <- x2`, top centre-left) and the query
+`p(x1 | x0, x2)` go into the compiler. The compiled DAG (top centre-right) puts the
+conditions first and *moralizes* the graph: because `x0` is observed, its two causes are no
+longer independent, so the compiled structure gains the edge `x2 -> x1` (teal). The boxes on
+either side list the distributions each structure can answer exactly. Below each DAG is the
+corresponding flow: one block per variable, each transporting noise (top) to data (bottom),
+with each block's velocity conditioned on its parents in the compiled DAG.
+
 ## Packages
 
 | package | purpose |
@@ -44,38 +56,21 @@ pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.2" 
 This pulls `sinterp-jax` from its GitHub tag. From a clone:
 `pip install -e ".[dev]"`.
 
-## Quickstart: a collider
+## Quickstart: a collider, end to end
 
-Take two independent causes and a common effect, `x1 -> y <- x2`, with
-`x1, x2 ~ N(0, 1)` and `y = x1 + x2 + 0.5 eps`. The compiler turns the graph and a query
-into a block-triangular flow structure. For causal queries it keeps the DAG. For the
-posterior `p(x1, x2 | y)` it puts the observation first and *moralizes*: observing `y`
-couples its causes, so the inference structure gains the edge `x2 -> x1`
-("explaining away").
+The example below uses the same graph shape with explicit equations, so every answer has a
+closed form to check against:
 
-```mermaid
-flowchart LR
-  subgraph PGM["PGM"]
-    direction TB
-    x1 --> y
-    x2 --> y
-  end
-  subgraph CA["compile_causal: order x1, x2, y"]
-    direction TB
-    c1[x1] --> cy[y]
-    c2[x2] --> cy
-  end
-  subgraph IN["compile_inference for x1, x2 given y: order y, x2, x1"]
-    direction TB
-    iy[y] --> i2[x2]
-    iy --> i1[x1]
-    i2 -- moral edge --> i1
-  end
-  PGM --> CA
-  PGM --> IN
+```math
+x_1,\ x_2 \sim \mathcal{N}(0, 1), \qquad y = x_1 + x_2 + 0.5\,\varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, 1).
 ```
 
-Train one static structured flow per compiled structure, on the same data:
+It trains two flows on the same data, one per compiled structure, and asks three kinds of
+question: a posterior, an intervention and a counterfactual.
+
+**1. Define the ground-truth model and sample training data.** A `StructuralPGM` is a DAG
+(`BlockTriangularStructure`) plus one mechanism per node. Here each mechanism is linear:
+`x = A @ parents + B @ noise + bias`.
 
 ```python
 import jax, jax.numpy as jnp, equinox as eqx, optax
@@ -84,55 +79,80 @@ from structflow.pgms import BlockTriangularStructure, StructuralPGM, PGMCompiler
 from structflow.pgms.mechanisms import LinearMechanism
 from structflow.conditional_flows import create_static_flow, create_distribution
 
-# ground truth: x1, x2 ~ N(0, 1);  y = x1 + x2 + 0.5 * eps
-structure = BlockTriangularStructure(block_order=["x1", "x2", "y"],
-                                     dependencies={"x1": [], "x2": [], "y": ["x1", "x2"]},
-                                     dims={"x1": 1, "x2": 1, "y": 1})
-root = lambda: LinearMechanism(parent_names=[], input_dim=0, output_dim=1,
-                               A=jnp.zeros((1, 0)), B=jnp.eye(1), bias=jnp.zeros(1))
-effect = LinearMechanism(parent_names=["x1", "x2"], input_dim=2, output_dim=1,
+structure = BlockTriangularStructure(
+    block_order=["x1", "x2", "y"],
+    dependencies={"x1": [], "x2": [], "y": ["x1", "x2"]},   # node -> its parents
+    dims={"x1": 1, "x2": 1, "y": 1},
+)
+cause = lambda: LinearMechanism(parent_names=[], input_dim=0, output_dim=1,      # x = noise
+                                A=jnp.zeros((1, 0)), B=jnp.eye(1), bias=jnp.zeros(1))
+effect = LinearMechanism(parent_names=["x1", "x2"], input_dim=2, output_dim=1,   # y = x1 + x2 + 0.5 noise
                          A=jnp.ones((1, 2)), B=0.5 * jnp.eye(1), bias=jnp.zeros(1))
-pgm = StructuralPGM(structure, {"x1": root(), "x2": root(), "y": effect})
-data = pgm.b_sample(random.PRNGKey(0), 4096)              # {'x1': (4096, 1), ...}
+pgm = StructuralPGM(structure, {"x1": cause(), "x2": cause(), "y": effect})
 
+data = pgm.b_sample(random.PRNGKey(0), 4096)      # dict of arrays: {'x1': (4096, 1), ...}
+```
+
+**2. Compile the graph for each kind of query.** The causal structure keeps the DAG, so
+its flow is a structural causal model. The inference structure for `p(x1, x2 | y)` puts `y`
+first and adds the moral edge `x2 -> x1`.
+
+```python
 compiler = PGMCompiler(structure.dependencies, structure.dims)
 causal = compiler.compile_causal()
 inference = compiler.compile_inference(targets={"x1", "x2"}, conditions={"y"})
 
-def train(s, key, steps=2000):
-    opt = optax.adam(3e-3)
-    model, step = create_static_flow(structure=s, depth=3, width=64, model_key=key, optimizer=opt)
-    opt_state = opt.init(eqx.filter(model, eqx.is_array))
-    for k in random.split(key, steps):
+print(causal.block_order, causal.dependencies)
+# ['x1', 'x2', 'y'] {'x1': [], 'x2': [], 'y': ['x1', 'x2']}
+print(inference.block_order, inference.dependencies)
+# ['y', 'x2', 'x1'] {'y': [], 'x2': ['y'], 'x1': ['y', 'x2']}
+```
+
+**3. Train one structured flow per compiled structure.** `create_static_flow` builds a
+flow-matching model whose blocks follow the structure; `create_distribution` wraps the
+trained model with `sample`, `log_prob` and `counterfactual`.
+
+```python
+def train(compiled, key, steps=2000):
+    optimizer = optax.adam(3e-3)
+    model, step = create_static_flow(structure=compiled, depth=3, width=64,
+                                     model_key=key, optimizer=optimizer)
+    opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
+    for k in random.split(key, steps):                       # full-batch training
         model, opt_state, _, loss = step(model, opt_state, None, data, k)
     return create_distribution(mode="static", model=model, structure_dict={
-        "dependencies": s.dependencies, "block_order": s.block_order, "dims": s.dims})
+        "dependencies": compiled.dependencies, "block_order": compiled.block_order,
+        "dims": compiled.dims})
 
-causal_flow, inference_flow = train(causal, random.PRNGKey(1)), train(inference, random.PRNGKey(2))
+causal_flow = train(causal, random.PRNGKey(1))         # answers do() and counterfactuals
+inference_flow = train(inference, random.PRNGKey(2))   # answers p(x1, x2 | y)
+```
 
-# posterior p(x1, x2 | y = 2), sampled directly (no MCMC)
+**4. Ask questions.** Each answer is printed next to its closed form.
+
+```python
+# Posterior: observing a large y makes the independent causes negatively correlated
+# ("explaining away"). Sampled directly from the inference flow; no MCMC.
 post = inference_flow.b_sample(random.PRNGKey(3), 2000, conditions={"y": jnp.array([2.0])})
-print(jnp.corrcoef(post["x1"][:, 0], post["x2"][:, 0])[0, 1])   # exact: -0.8
+print("corr(x1, x2 | y=2):", jnp.corrcoef(post["x1"][:, 0], post["x2"][:, 0])[0, 1], "exact -0.8")
 
-# intervention E[y | do(x1 = 2)]
-y_do = jax.vmap(lambda k: causal_flow.sample(k, targets={"x2", "y"},
-                                             interventions={"x1": jnp.array([2.0])})["y"])(
+# Intervention: set x1 = 2 by surgery on the causal flow and sample y.
+do_x1 = {"x1": jnp.array([2.0])}
+y_do = jax.vmap(lambda k: causal_flow.sample(k, targets={"x2", "y"}, interventions=do_x1)["y"])(
     random.split(random.PRNGKey(4), 2000))
-print(y_do.mean())                                              # exact: 2.0
+print("E[y | do(x1=2)]:", y_do.mean(), "exact 2.0")
 
-# counterfactual: had x1 been 2, what would this individual's y have been?
-factual = {b: v[0] for b, v in data.items()}
-cf, _ = causal_flow.counterfactual(factual, interventions={"x1": jnp.array([2.0])}, targets={"y"})
-print(cf["y"], factual["y"] + 2.0 - factual["x1"])              # flow vs exact
+# Counterfactual: for one observed individual, what would y have been had x1 been 2?
+# Abduction recovers this individual's noise, which is then pushed through the modified model.
+factual = {name: values[0] for name, values in data.items()}
+cf, _ = causal_flow.counterfactual(factual, interventions=do_x1, targets={"y"})
+print("counterfactual y:", cf["y"], "exact", factual["y"] + 2.0 - factual["x1"])
 ```
 
 [`examples/structflow_quickstart.py`](examples/structflow_quickstart.py) runs the same
-pipeline with the checks spelled out (about a minute on a laptop CPU):
+steps as a script (about a minute on a laptop CPU):
 
 ```text
-causal    order ['x1', 'x2', 'y']  parents {'x1': [], 'x2': [], 'y': ['x1', 'x2']}
-inference order ['y', 'x2', 'x1']  parents {'y': [], 'x2': ['y'], 'x1': ['y', 'x2']}
-
 1. posterior given y = 2.0
    corr(x1, x2): a priori +0.03; given y: flow -0.85, exact -0.80
    E[x1 | y], E[x2 | y]: flow 0.91, 0.79; exact 0.89
@@ -143,7 +163,7 @@ inference order ['y', 'x2', 'x1']  parents {'y': [], 'x2': ['y'], 'x1': ['y', 'x
    had x1 been 2, y would have been: flow -0.12, exact -0.01
 ```
 
-The ground-truth PGM answers the same queries exactly where they are tractable:
+The ground-truth PGM answers the same queries where they are tractable:
 `pgm.log_prob(x, targets, conditions)` for ancestral queries, `pgm.counterfactual(...)`,
 and `pgm.sample(...)` (MCMC for non-ancestral conditionals). `structflow.pgms` also
 provides random benchmark PGMs (`make_random_pgm`, `make_chain_pgm`, `make_collider_pgm`).
