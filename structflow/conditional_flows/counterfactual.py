@@ -170,7 +170,11 @@ class CounterfactualMixin:
             sample_dict = results if targets is None else {k: results[k] for k in targets if k in results}
             return sample_dict, jnp.array(jnp.nan)
 
-        log_prob = self._predict_log_prob(x0_sim, simulation_blocks, results, aux)
+        # The density needs every parent of the simulated blocks, including the unchanged
+        # ancestors that entered the prediction as conditions (e.g. x2 for target y in a
+        # collider x1 -> y <- x2 under do(x1)).
+        log_prob = self._predict_log_prob(x0_sim, simulation_blocks,
+                                          {**effective_conditions, **results}, aux)
 
         # 5. Filter targets and return
         sample_dict = results if targets is None else {k: results[k] for k in targets if k in results}

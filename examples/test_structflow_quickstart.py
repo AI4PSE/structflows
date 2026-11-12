@@ -1,6 +1,6 @@
 """Smoke test for the worked example in ``examples/structflow_quickstart.py``.
 
-Runs the full compile -> train -> query -> counterfactual pipeline with tiny
+Runs the full compile -> train -> posterior / intervention / counterfactual pipeline with tiny
 settings so it stays fast, and checks the example's key claims hold:
 the inference compilation moralizes the collider, training produces a finite
 loss, and queries return finite values.
@@ -23,14 +23,13 @@ _spec.loader.exec_module(quickstart)
 
 
 def test_quickstart_runs_and_moralizes():
-    result = quickstart.run(n_train=64, train_steps=20, width=16, depth=2,
+    result = quickstart.run(n_train=64, train_steps=20, width=16, depth=2, n_eval=64,
                             seed=0, verbose=False)
 
-    # Training produced a finite loss and finite log-probability.
-    assert np.isfinite(result["final_loss"])
-    assert np.isfinite(result["log_prob"])
+    # Training produced finite losses.
+    assert all(np.isfinite(l) for l in result["losses"])
 
-    # Causal structure leaves the collider parents independent ...
+    # Causal structure leaves the collider's causes independent ...
     _, causal_deps = result["causal_structure"]
     assert causal_deps["x1"] == [] and causal_deps["x2"] == []
 
@@ -41,5 +40,7 @@ def test_quickstart_runs_and_moralizes():
     moral_edge = ("x2" in inf_deps.get("x1", [])) or ("x1" in inf_deps.get("x2", []))
     assert moral_edge, f"expected a moralization edge between x1 and x2, got {inf_deps}"
 
-    # Counterfactual returns a finite outcome for y.
-    assert all(np.isfinite(v) for v in result["counterfactual_y"])
+    # Every query returns finite values (the counterfactual of y needs the unchanged
+    # parent x2 as context).
+    assert np.all(np.isfinite(result["flow_mean"]))
+    assert np.isfinite(result["y_do"]) and all(np.isfinite(v) for v in result["y_cf"])

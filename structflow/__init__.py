@@ -7,4 +7,4 @@ Subpackages:
 
 Built on `sinterp` (interpolants, couplings) and `flow` (ODE/SDE integration).
 """
-__version__ = "0.1.0"
+__version__ = "0.1.1"

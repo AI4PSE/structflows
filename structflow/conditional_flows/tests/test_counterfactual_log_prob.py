@@ -296,3 +296,30 @@ if __name__ == "__main__":
     print("Test 3: KL divergence non-negative...")
     test.test_kl_divergence_non_negative()
     print("PASSED\n")
+
+
+def test_static_counterfactual_log_prob_with_unchanged_parent():
+    """Collider x1 -> y <- x2, do(x1), target y: y's parent x2 is neither simulated nor
+    intervened on, so it enters the prediction as a condition. The counterfactual density
+    must use it (it used to raise KeyError: 'x2') and, for static conditioning, equal the
+    flow's own conditional density p(y | x1 = do value, x2 = observed) at the predicted y."""
+    import optax
+    from structflow.pgms import make_collider_pgm
+    from structflow.conditional_flows import create_static_flow, create_distribution
+
+    pgm = make_collider_pgm(n_causes=2, mechanism_type="linear", key=random.PRNGKey(0))
+    s = pgm.structure
+    model, _ = create_static_flow(structure=s, depth=2, width=16, model_key=random.PRNGKey(1),
+                                  optimizer=optax.adam(1e-3))
+    dist = create_distribution(mode="static", model=model, structure_dict={
+        "dependencies": s.dependencies, "block_order": s.block_order, "dims": s.dims})
+
+    factual = pgm.sample(random.PRNGKey(2))
+    do = {"x1": jnp.array([2.0])}
+    cf, lp = dist.counterfactual(factual, interventions=do, targets={"y"})
+    lp_cond = dist.log_prob({"x1": do["x1"], "x2": factual["x2"], "y": cf["y"]},
+                            targets={"y"}, conditions={"x1", "x2"})
+    assert jnp.isfinite(lp)
+    # forward (from noise) and backward (from data) discretisations of the same ODE agree
+    # to O(dt); an untrained network makes the absolute density large, hence rtol
+    assert jnp.allclose(lp, lp_cond, rtol=1e-3), (lp, lp_cond)

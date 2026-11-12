@@ -1,29 +1,24 @@
 # Examples
 
-Self-contained, runnable examples for the library. Unlike
-`notebooks-and-scripts/` (exploratory, untested), these are kept working and are
-covered by the test suite.
+Self-contained, runnable examples for the library, kept working and covered by the
+test suite.
 
 ## `structflow_quickstart.py`
 
-An end-to-end walk-through of the core StructFlow workflow on a small collider
-PGM `x1 -> y <- x2`:
+A worked example on a collider `x1 -> y <- x2` with explicit linear-Gaussian equations
+(`x1, x2 ~ N(0, 1)`, `y = x1 + x2 + 0.5 eps`), so every answer has a closed form:
 
-1. **Define** a ground-truth structural PGM and sample training data.
-2. **Compile** the DAG into causal- and inference-aligned block-triangular
-   structures with `pgms.PGMCompiler`. The inference compilation *moralizes* the
-   collider, adding the "explaining away" edge between the two causes.
-3. **Train** a static structured flow with the `conditional_flows` factories.
-4. **Query** the trained flow (`sample`, `log_prob`).
-5. **Counterfactual** reasoning on the ground-truth SCM.
+1. **Compile** the DAG twice with `pgms.PGMCompiler`: a *causal* structure (DAG order) and
+   an *inference* structure for `p(x1, x2 | y)`, which moralizes the collider by adding the
+   "explaining away" edge `x2 -> x1`.
+2. **Train** one static structured flow per structure on the same data.
+3. **Query** and check against the closed form: the posterior `p(x1, x2 | y)` (the causes
+   become correlated, -0.8, once y is observed), the intervention `E[y | do(x1 = 2)]`, and
+   a counterfactual for one observed individual.
 
 ```bash
-# Defaults finish in a few seconds on CPU.
-python examples/structflow_quickstart.py
-
-# A better fit (slower):
-python examples/structflow_quickstart.py --train-steps 1000 --n-train 2048
+python examples/structflow_quickstart.py        # about a minute on a laptop CPU
 ```
 
-The accompanying `test_structflow_quickstart.py` runs the same pipeline with
-tiny settings as a fast smoke test (`pytest examples/`).
+The accompanying `test_structflow_quickstart.py` runs the same pipeline with tiny settings
+as a fast smoke test (`pytest examples/`).
