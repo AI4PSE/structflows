@@ -65,7 +65,7 @@ def test_create_distribution_factory(mode, structure_type):
             optimizer=optax.adam(1e-3),
             use_coupling=False,
         )
-    elif mode == "dynamic" or mode == "dynamicv2":
+    elif mode == "dynamic":
         model, _ = create_dynamic_flow(
             structure=pgm.structure,
             depth=2, width=16,
@@ -151,7 +151,7 @@ def test_create_flow_and_dist(mode):
             optimizer=optax.adam(1e-3),
             use_coupling=False,
         )
-    elif mode == "dynamic" or mode == "dynamicv2":
+    elif mode == "dynamic":
         model, step_fn = create_dynamic_flow(
             structure=pgm.structure,
             depth=2, width=16,

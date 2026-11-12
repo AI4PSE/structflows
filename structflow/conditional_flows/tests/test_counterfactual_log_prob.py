@@ -20,8 +20,8 @@ import equinox as eqx
 from structflow.pgms.structure import BlockTriangularStructure
 from structflow.pgms.structural_pgm import StructuralPGM
 from structflow.pgms.mechanisms import LinearMechanism
-from structflow.conditional_flows.parallel.dist import ParallelBlockTriangularDistribution
-from structflow.conditional_flows.parallel.flow import ParallelFlow
+from structflow.conditional_flows.dynamic.parallel_dist import ParallelBlockTriangularDistribution
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
 from structflow.conditional_flows.dist import NormalisedDistribution
 from structflow.conditional_flows.utils import DictNormaliser
 from structflow.bayes.distribution import Gaussian

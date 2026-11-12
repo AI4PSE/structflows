@@ -4,8 +4,8 @@ Three conditioning paradigms are provided:
 
 * ``static`` — autoregressive block-triangular conditioning (conditions are
   integrated to completion, then fed as fixed context);
-* ``dynamic`` / ``parallel`` — all variables integrated jointly in a single ODE
-  solve, conditioning on the co-evolving trajectory;
+* ``dynamic`` — all variables integrated jointly in a single ODE solve,
+  conditioning on the co-evolving trajectory (see ``dynamic/README.md``);
 * ``guidance`` — reconstruction-guided sampling supporting arbitrary queries.
 
 The ``create_*`` factory functions in :mod:`conditional_flows.flow_factory`
@@ -34,7 +34,7 @@ _EXPORTS = {
     "create_static_distribution": "structflow.conditional_flows.dist_factory",
     "create_guided_distribution": "structflow.conditional_flows.dist_factory",
     "create_parallel_distribution": "structflow.conditional_flows.dist_factory",
-    "create_dynamicv2_distribution": "structflow.conditional_flows.dist_factory",
+    "create_dynamic_distribution": "structflow.conditional_flows.dist_factory",
     "create_dcm_distribution": "structflow.conditional_flows.dist_factory",
 }
 

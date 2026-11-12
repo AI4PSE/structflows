@@ -1,5 +1,5 @@
 """
-Tests for DynamicV2 subset velocity and interpolation components.
+Tests for the dynamic-conditioning subset velocity and interpolation components.
 
 Tests:
 - Trajectory interpolation accuracy
@@ -14,8 +14,8 @@ from jax import random, vmap
 import equinox as eqx
 
 from structflow.pgms.structure import BlockTriangularStructure
-from structflow.conditional_flows.parallel.net import ParallelStructuredFn
-from structflow.conditional_flows.dynamicv2.subset_velocity import interp_trajectory, SubsetVelocityFn
+from structflow.conditional_flows.dynamic.net import ParallelStructuredFn
+from structflow.conditional_flows.dynamic.subset_velocity import interp_trajectory, SubsetVelocityFn
 from flow.utils import divergence_jvp
 
 

@@ -1,13 +1,13 @@
 """
-DynamicV2Flow: Flow with weight clipping and condition trajectory interpolation.
+DynamicFlow: Flow with weight clipping and condition trajectory interpolation.
 """
 
 import equinox as eqx
 import jax.numpy as jnp
 from typing import Dict, List, Optional
 from structflow.conditional_flows.flow import ConditionalFlow
-from structflow.conditional_flows.parallel.flow import ParallelFlow
-from structflow.conditional_flows.dynamicv2.subset_velocity import (
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
+from structflow.conditional_flows.dynamic.subset_velocity import (
     clip_tail,
     SubsetVelocityFn,
     interp_trajectory,
@@ -55,12 +55,12 @@ class ClampedFullVelocityFn(eqx.Module):
             [v_full[offs[b][0]:offs[b][1]] for b in self.active_block_names])
 
 
-class DynamicV2Flow(ConditionalFlow):
+class DynamicFlow(ConditionalFlow):
     """
     Flow for block-structured variables using weight clipping and condition
     interpolation.
 
-    Wraps a :class:`~conditional_flows.parallel.flow.ParallelFlow` to provide
+    Wraps a :class:`~conditional_flows.dynamic.parallel_flow.ParallelFlow` to provide
     efficient conditional integration:
 
     * **Tail clipping** remove blocks not needed for targets

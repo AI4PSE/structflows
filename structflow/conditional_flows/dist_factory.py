@@ -18,8 +18,8 @@ from structflow.conditional_flows.guidance.dist import GuidanceBasedDistribution
 from structflow.conditional_flows.guidance.flow import GuidedFlow
 from structflow.conditional_flows.dist import NormalisedDistribution
 from structflow.pgms.structure import BlockTriangularStructure
-from structflow.conditional_flows.parallel.dist import ParallelBlockTriangularDistribution
-from structflow.conditional_flows.parallel.flow import ParallelFlow
+from structflow.conditional_flows.dynamic.parallel_dist import ParallelBlockTriangularDistribution
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
 
 
 # ============================================================================
@@ -284,14 +284,14 @@ def create_parallel_distribution(
     return ParallelBlockTriangularDistribution(flow, base_distributions)
 
 
-def create_dynamicv2_distribution(
+def create_dynamic_distribution(
     model: Any,
     structure: BlockTriangularStructure,
     n_steps: int = 50,
     integrator_name: str = 'diffrax'
 ) -> Any:
     """
-    Create a DynamicV2Distribution (weight clipping + trajectory interpolation).
+    Create a DynamicDistribution (weight clipping + trajectory interpolation).
 
     Args:
         model: Either an OneSidedField_eta1 or a model with a .net attribute
@@ -301,17 +301,17 @@ def create_dynamicv2_distribution(
         integrator_name: Name of the integrator to use.
 
     Returns:
-        DynamicV2Distribution instance.
+        DynamicDistribution instance.
     """
-    from structflow.conditional_flows.dynamicv2 import DynamicV2Flow, DynamicV2Distribution
+    from structflow.conditional_flows.dynamic import DynamicFlow, DynamicDistribution
 
     velocity_fn = ParallelFieldAdapter(model)
     parallel_flow = ParallelFlow(velocity_fn, n_steps=n_steps,
                                   integrator_name=integrator_name)
-    dynamicv2_flow = DynamicV2Flow(parallel_flow)
+    dynamic_flow = DynamicFlow(parallel_flow)
     base_distributions = _create_base_distributions(structure)
 
-    return DynamicV2Distribution(dynamicv2_flow, base_distributions)
+    return DynamicDistribution(dynamic_flow, base_distributions)
 
 
 # ============================================================================
@@ -373,8 +373,8 @@ def create_distribution(
     #         n_steps=n_steps,
     #         integrator_name=integrator_name
     #     )
-    elif mode in ['dynamic', 'dynamicv2']:
-        dist = create_dynamicv2_distribution(
+    elif mode == 'dynamic':
+        dist = create_dynamic_distribution(
             model=model,
             structure=structure,
             n_steps=n_steps,

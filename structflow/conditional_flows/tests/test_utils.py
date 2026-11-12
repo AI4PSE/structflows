@@ -239,19 +239,19 @@ def is_triangular_mode(mode: str) -> bool:
 
 def is_flow_based_mode(mode: str) -> bool:
     """Check if mode is flow-based (supports zero velocity = identity)."""
-    return mode in ["static", "dynamic", "dynamicv2", "guided"]
+    return mode in ["static", "dynamic", "guided"]
 
 
 def mode_supports_full_log_prob(mode: str) -> bool:
     """Check if mode supports arbitrary log_prob queries."""
     # joint/guidance mode only supports p(all_vars)
-    return mode in ["static", "dynamic", "dynamicv2", "carefl"]
+    return mode in ["static", "dynamic", "carefl"]
 
 
 def mode_supports_transform_to_noise(mode: str) -> bool:
     """Check if mode has a tractable transform_to_noise operation."""
     # guidance might not have a direct backward pass
-    return mode in ["static", "dynamic", "dynamicv2", "carefl"]
+    return mode in ["static", "dynamic", "carefl"]
 
 
 # ============================================================================

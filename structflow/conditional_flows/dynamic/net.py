@@ -3,12 +3,12 @@ import jax.numpy as jnp
 import equinox as eqx
 from typing import Dict, List, Callable, Optional, Union, Tuple, Set
 from structflow.pgms.structure import Structure
-from structflow.conditional_flows.parallel.layers import (
+from structflow.conditional_flows.dynamic.layers import (
     DenseMaskedLinear, 
     SparseMaskedLinear, 
     MaskedResidualLayer
 )
-from structflow.conditional_flows.parallel.structured_utils import (
+from structflow.conditional_flows.dynamic.structured_utils import (
     build_structure_mask, 
     get_block_offsets
 )

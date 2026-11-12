@@ -17,13 +17,13 @@ import jax.numpy as jnp
 import equinox as eqx
 from typing import Dict, List, Optional, Tuple, Union, Set, Callable
 from structflow.pgms.structure import Structure, BlockTriangularStructure
-from structflow.conditional_flows.parallel.layers import (
+from structflow.conditional_flows.dynamic.layers import (
     DenseMaskedLinear,
     SparseMaskedLinear,
     MaskedResidualLayer,
     BlockLayerNorm,
 )
-from structflow.conditional_flows.parallel.structured_utils import get_block_offsets
+from structflow.conditional_flows.dynamic.structured_utils import get_block_offsets
 
 
 # ============================================================================

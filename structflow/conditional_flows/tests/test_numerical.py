@@ -25,8 +25,8 @@ import optax
 from structflow.pgms.structure import BlockTriangularStructure
 from structflow.conditional_flows.static.dist import StaticConditionalDistribution
 from structflow.conditional_flows.static.flow import StaticConditionalFlow
-from structflow.conditional_flows.parallel.dist import ParallelBlockTriangularDistribution
-from structflow.conditional_flows.parallel.flow import ParallelFlow
+from structflow.conditional_flows.dynamic.parallel_dist import ParallelBlockTriangularDistribution
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
 from structflow.conditional_flows.guidance.dist import GuidanceBasedDistribution
 from structflow.conditional_flows.guidance.flow import GuidedFlow
 from structflow.bayes.distribution import Gaussian, DictDistribution

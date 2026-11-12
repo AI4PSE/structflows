@@ -4,7 +4,7 @@ import equinox as eqx
 from typing import Dict, List, Optional, Union, Set
 from flow.flow import Flow
 from structflow.conditional_flows.flow import ConditionalFlow
-from structflow.conditional_flows.parallel.net import ParallelStructuredFn
+from structflow.conditional_flows.dynamic.net import ParallelStructuredFn
 
 class ParallelFlow(ConditionalFlow):
     """

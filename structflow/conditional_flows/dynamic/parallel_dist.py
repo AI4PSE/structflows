@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Union, Set
 from structflow.bayes.distribution import Distribution
 from structflow.conditional_flows.dist import ConditionalDistribution
 from flow.utils import divergence_jvp
-from structflow.conditional_flows.parallel.flow import ParallelFlow
-from structflow.conditional_flows.parallel.block_extractor import BlockBasedVelocityFn
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
+from structflow.conditional_flows.dynamic.block_extractor import BlockBasedVelocityFn
 
 def clip_by_norm(x, max_norm, axis=-1):
     """Clips the norm of a tensor x to max_norm."""

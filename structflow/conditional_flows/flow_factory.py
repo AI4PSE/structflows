@@ -298,7 +298,7 @@ def create_dynamic_flow(
     Returns:
         Tuple of (model, step_fn)
     """
-    from structflow.conditional_flows.parallel.net import ParallelStructuredFn
+    from structflow.conditional_flows.dynamic.net import ParallelStructuredFn
     
     interpolator = OneSidedLinear()
     coupling_kind, coupling = _resolve_coupling(use_coupling)

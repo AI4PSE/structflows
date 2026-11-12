@@ -41,9 +41,9 @@ from structflow.bayes.distribution import Gaussian
 from structflow.pgms.structure import BlockTriangularStructure
 from structflow.conditional_flows.static.dist import StaticConditionalDistribution
 from structflow.conditional_flows.static.flow import StaticConditionalFlow
-from structflow.conditional_flows.parallel.dist import ParallelBlockTriangularDistribution
-from structflow.conditional_flows.parallel.flow import ParallelFlow
-from structflow.conditional_flows.parallel.layers import DenseMaskedLinear
+from structflow.conditional_flows.dynamic.parallel_dist import ParallelBlockTriangularDistribution
+from structflow.conditional_flows.dynamic.parallel_flow import ParallelFlow
+from structflow.conditional_flows.dynamic.layers import DenseMaskedLinear
 from structflow.conditional_flows.flow_factory import create_static_flow, create_dynamic_flow
 from structflow.conditional_flows.dist_factory import create_distribution
 from structflow.conditional_flows.guidance.guidance_based import AbstractGuidedVelocity

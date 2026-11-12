@@ -34,14 +34,14 @@ N_STEPS=10
 # ============================================================================
 
 MODES = ["static", "dynamic", "guided", "carefl", "universal"]
-# MODES = ["carefl", "universal", "dynamic", "dynamicv2"]
+# MODES = ["carefl", "universal", "dynamic"]
 STRUCTURE_TYPES = ["chain", "fork", "collider"]
 
 # Modes that support Jacobian triangularity testing
-TRIANGULAR_MODES = ["static", "dynamic", "dynamicv2", "carefl", "universal"]
+TRIANGULAR_MODES = ["static", "dynamic", "carefl", "universal"]
 
 # Modes that are flow-based (support zero velocity test)
-FLOW_BASED_MODES = ["static", "dynamic", "dynamicv2", "guided"]
+FLOW_BASED_MODES = ["static", "dynamic", "guided"]
 
 
 # ============================================================================
@@ -193,22 +193,6 @@ def dist(mode, simple_pgm, pgm_key):
             n_steps=N_STEPS,
         )
     
-    elif mode == "dynamicv2":
-        model, _ = create_dynamic_flow(
-            structure=pgm.structure,
-            depth=2,
-            width=16,
-            model_key=pgm_key,
-            optimizer=optax.adam(1e-3),
-            use_coupling=False,
-        )
-        return create_distribution(
-            mode="dynamicv2",
-            structure_dict=structure_dict,
-            model=model,
-            n_steps=N_STEPS,
-        )
-    
     elif mode == "guided":
         model, _ = create_joint_flow(
             structure=pgm.structure,
@@ -277,7 +261,7 @@ def flow_and_step_fn(mode, simple_pgm, pgm_key):
             use_coupling=False,
         )
     
-    elif mode == "dynamic" or mode == "dynamicv2":
+    elif mode == "dynamic":
         model, step_fn = create_dynamic_flow(
             structure=pgm.structure,
             depth=2,

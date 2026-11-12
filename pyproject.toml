@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "structflow-jax"
-version = "0.1.1"
+version = "0.1.2"
 description = "StructFlow: compile probabilistic graphical models into structured (block-triangular) continuous normalizing flows for causal and inference queries."
 readme = "README.md"
 requires-python = ">=3.10"

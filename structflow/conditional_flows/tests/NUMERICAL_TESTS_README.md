@@ -381,6 +381,6 @@ test_chain_structure()
 - **Interpolants**: [`sinterp/interpolants.py`](../sinterp/interpolants.py)
 - **Distribution implementations**: 
   - [`conditional_flows/static/dist.py`](../static/dist.py)
-  - [`conditional_flows/parallel/distv2.py`](../parallel/distv2.py)
+  - [`conditional_flows/dynamic/distv2.py`](../parallel/distv2.py)
   - [`conditional_flows/guidance/dist.py`](../guidance/dist.py)
 - **Test utilities**: [`tests/numerical_utils.py`](./numerical_utils.py)

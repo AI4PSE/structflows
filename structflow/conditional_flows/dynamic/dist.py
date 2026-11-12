@@ -1,5 +1,5 @@
 """
-DynamicV2Distribution: Conditional distribution using weight clipping and trajectory interpolation.
+DynamicDistribution: Conditional distribution using weight clipping and trajectory interpolation.
 """
 
 import jax
@@ -10,29 +10,29 @@ from typing import Dict, List, Optional, Union, Set
 from structflow.bayes.distribution import Distribution
 from structflow.conditional_flows.dist import ConditionalDistribution
 from flow.utils import divergence_jvp
-from structflow.conditional_flows.dynamicv2.flow import DynamicV2Flow, ClampedFullVelocityFn
-from structflow.conditional_flows.dynamicv2.subset_velocity import (
+from structflow.conditional_flows.dynamic.flow import DynamicFlow, ClampedFullVelocityFn
+from structflow.conditional_flows.dynamic.subset_velocity import (
     clip_tail,
     SubsetVelocityFn,
 )
 
 
-class DynamicV2Distribution(ConditionalDistribution, eqx.Module):
+class DynamicDistribution(ConditionalDistribution, eqx.Module):
     """
-    Conditional distribution using DynamicV2 inference strategy.
+    Conditional distribution for dynamic conditioning (the default implementation).
     
     Uses weight clipping to remove unused variables and trajectory interpolation
     for conditions, enabling efficient and exact conditional sampling.
     """
-    flow: DynamicV2Flow
+    flow: DynamicFlow
     base_distributions: Dict[str, Distribution]
     
-    def __init__(self, flow: DynamicV2Flow, base_distributions: Dict[str, Distribution]):
+    def __init__(self, flow: DynamicFlow, base_distributions: Dict[str, Distribution]):
         """
-        Initialize DynamicV2Distribution.
+        Initialize DynamicDistribution.
         
         Args:
-            flow: DynamicV2Flow instance
+            flow: DynamicFlow instance
             base_distributions: Dictionary mapping block names to base Distribution objects
         """
         self.flow = flow

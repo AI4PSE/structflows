@@ -38,7 +38,7 @@ Install JAX for your hardware first (`pip install "jax[cpu]"` or
 `"jax[cuda12]"`), then
 
 ```bash
-pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.1"   # import structflow
+pip install "structflow-jax @ git+https://github.com/AI4PSE/structflows@v0.1.2"   # import structflow
 ```
 
 This pulls `sinterp-jax` from its GitHub tag. From a clone:

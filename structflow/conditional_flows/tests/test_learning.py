@@ -131,7 +131,7 @@ def test_learner_can_fit_simple_pgm(mode, simple_pgm, pgm_key):
             optimizer=optax.adam(0.01),
             use_coupling=False,
         )
-    elif mode == "dynamic" or "dynamicv2":
+    elif mode == "dynamic":
         model, step_fn = create_dynamic_flow(
             structure=pgm.structure,
             depth=2, width=16,

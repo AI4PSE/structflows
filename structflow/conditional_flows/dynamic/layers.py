@@ -4,7 +4,7 @@ import numpy as np
 import equinox as eqx
 from typing import Dict, List, Optional, Callable, Union, Tuple, Any
 from structflow.pgms.structure import Structure
-from structflow.conditional_flows.parallel.structured_utils import build_structure_mask
+from structflow.conditional_flows.dynamic.structured_utils import build_structure_mask
 
 # Re-export from structured_utils for backward compatibility if needed, 
 # but we prefer using build_structure_mask now.
